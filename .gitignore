@@ -1,0 +1,61 @@
+# .NET build files
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider IDE
+.idea/
+
+# ASP.NET Core
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.json
+
+# Logs
+*.log
+logs/
+
+# Database
+*.mdf
+*.ldf
+*.sqlite
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Dotnet tool files
+*.dotCover
+*.dotMemory
+
+# Temporary files
+*.tmp
+*.cache
+*.DS_Store
+
+# Publish
+publish/
+*.publish/
+
+# Test results
+TestResults/
+*.trx
+
+# Node / frontend (if applicable)
+node_modules/
+dist/
+wwwroot/
+
+# Secrets
+secrets.json
+.env
