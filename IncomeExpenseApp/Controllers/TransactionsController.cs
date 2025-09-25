@@ -230,8 +230,10 @@ namespace IncomeExpenseApp.Controllers
                 if (toDate.HasValue)
                     query = query.Where(t => t.Date <= toDate.Value);
 
-                // Load to memory first to avoid SQLite decimal sum issues
-                var allTransactions = await query.ToListAsync();
+                // Select only the columns we need to avoid CategoryId issues
+                var allTransactions = await query
+                    .Select(t => new { t.Amount, t.Type })
+                    .ToListAsync();
                 
                 var totalIncome = allTransactions
                     .Where(t => t.Type == TransactionType.Income)

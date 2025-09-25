@@ -10,6 +10,12 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Add SPA services
+builder.Services.AddSpaStaticFiles(configuration =>
+{
+    configuration.RootPath = "ClientApp/build";
+});
+
 // Add Entity Framework with SQLite or InMemory for testing
 if (builder.Environment.EnvironmentName == "Testing")
 {
@@ -87,9 +93,10 @@ using (var scope = app.Services.CreateScope())
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 
-// Serve static files
-app.UseDefaultFiles();
+// Serve static files from wwwroot (for API docs, etc.)
 app.UseStaticFiles();
+// Serve SPA static files
+app.UseSpaStaticFiles();
 
 app.UseAuthorization();
 app.MapControllers();
@@ -99,6 +106,17 @@ app.MapGet("/health", () => new {
     Status = "Healthy", 
     Timestamp = DateTime.UtcNow,
     Environment = app.Environment.EnvironmentName
+});
+
+// Configure SPA
+app.UseSpa(spa =>
+{
+    spa.Options.SourcePath = "ClientApp";
+
+    if (app.Environment.IsDevelopment())
+    {
+        spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
+    }
 });
 
 app.Run();

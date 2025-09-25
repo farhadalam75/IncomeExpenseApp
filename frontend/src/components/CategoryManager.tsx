@@ -1,0 +1,357 @@
+import React, { useState, useEffect } from 'react';
+import { categoryApi, Category, CategoryCreateDto, TransactionType } from '../services/api';
+
+const CategoryManager: React.FC = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  
+  const [formData, setFormData] = useState<CategoryCreateDto>({
+    name: '',
+    description: '',
+    type: TransactionType.Expense,
+  });
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await categoryApi.getAll();
+      setCategories(response.data);
+    } catch (err) {
+      setError('Failed to load categories');
+      console.error('Category loading error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'type' ? parseInt(value) as TransactionType : value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      setError('Category name is required');
+      return;
+    }
+
+    try {
+      setError(null);
+      await categoryApi.create(formData);
+      
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        type: TransactionType.Expense,
+      });
+      setShowForm(false);
+      
+      // Reload categories
+      loadCategories();
+    } catch (err: any) {
+      if (err.response?.status === 400) {
+        setError('Category name already exists for this type');
+      } else {
+        setError('Failed to create category');
+      }
+      console.error('Category creation error:', err);
+    }
+  };
+
+  const handleDelete = async (id: number, isDefault: boolean) => {
+    if (isDefault) {
+      setError('Cannot delete default categories');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this category?')) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await categoryApi.delete(id);
+      setCategories(categories.filter(c => c.id !== id));
+    } catch (err) {
+      setError('Failed to delete category');
+      console.error('Category deletion error:', err);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const incomeCategories = categories.filter(c => c.type === TransactionType.Income);
+  const expenseCategories = categories.filter(c => c.type === TransactionType.Expense);
+
+  return (
+    <div>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '2rem' 
+      }}>
+        <h1 style={{ color: 'white', margin: 0 }}>
+          Category Management
+        </h1>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="btn btn-primary"
+        >
+          {showForm ? 'Cancel' : 'Add New Category'}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ 
+          background: 'rgba(248, 113, 113, 0.1)', 
+          border: '1px solid #f87171', 
+          color: '#f87171',
+          padding: '1rem',
+          borderRadius: '8px',
+          marginBottom: '1rem'
+        }}>
+          {error}
+          <button 
+            onClick={() => setError(null)}
+            style={{ 
+              float: 'right', 
+              background: 'none', 
+              border: 'none', 
+              color: '#f87171', 
+              cursor: 'pointer' 
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Add Category Form */}
+      {showForm && (
+        <div className="glass-card" style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: 'white', marginBottom: '1rem' }}>Add New Category</h3>
+          
+          <form onSubmit={handleSubmit}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <div>
+                <label className="form-label">Type *</label>
+                <select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  required
+                >
+                  <option value={TransactionType.Expense}>Expense</option>
+                  <option value={TransactionType.Income}>Income</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label">Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  placeholder="Enter category name"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Description</label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                className="form-control"
+                placeholder="Optional description"
+                rows={2}
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary">
+              Create Category
+            </button>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="glass-card">
+          <div className="loading">Loading categories...</div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+          {/* Income Categories */}
+          <div className="glass-card">
+            <h3 style={{ color: '#4ade80', marginBottom: '1.5rem', textAlign: 'center' }}>
+              Income Categories ({incomeCategories.length})
+            </h3>
+            
+            {incomeCategories.length > 0 ? (
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Default</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {incomeCategories.map((category) => (
+                      <tr key={category.id}>
+                        <td>
+                          <div>
+                            <div style={{ fontWeight: 'bold' }}>{category.name}</div>
+                            {category.description && (
+                              <div style={{ 
+                                fontSize: '0.8rem', 
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                marginTop: '0.25rem'
+                              }}>
+                                {category.description}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          {category.isDefault ? (
+                            <span style={{ color: '#4ade80' }}>Yes</span>
+                          ) : (
+                            <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>No</span>
+                          )}
+                        </td>
+                        <td>{formatDate(category.createdAt)}</td>
+                        <td>
+                          {!category.isDefault && (
+                            <button
+                              onClick={() => handleDelete(category.id, category.isDefault)}
+                              className="btn btn-danger"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                color: 'rgba(255, 255, 255, 0.7)', 
+                padding: '2rem' 
+              }}>
+                No income categories found
+              </div>
+            )}
+          </div>
+
+          {/* Expense Categories */}
+          <div className="glass-card">
+            <h3 style={{ color: '#f87171', marginBottom: '1.5rem', textAlign: 'center' }}>
+              Expense Categories ({expenseCategories.length})
+            </h3>
+            
+            {expenseCategories.length > 0 ? (
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Default</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenseCategories.map((category) => (
+                      <tr key={category.id}>
+                        <td>
+                          <div>
+                            <div style={{ fontWeight: 'bold' }}>{category.name}</div>
+                            {category.description && (
+                              <div style={{ 
+                                fontSize: '0.8rem', 
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                marginTop: '0.25rem'
+                              }}>
+                                {category.description}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          {category.isDefault ? (
+                            <span style={{ color: '#4ade80' }}>Yes</span>
+                          ) : (
+                            <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>No</span>
+                          )}
+                        </td>
+                        <td>{formatDate(category.createdAt)}</td>
+                        <td>
+                          {!category.isDefault && (
+                            <button
+                              onClick={() => handleDelete(category.id, category.isDefault)}
+                              className="btn btn-danger"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                color: 'rgba(255, 255, 255, 0.7)', 
+                padding: '2rem' 
+              }}>
+                No expense categories found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CategoryManager;
