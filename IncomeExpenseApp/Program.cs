@@ -10,23 +10,33 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Add Entity Framework with SQLite
-builder.Services.AddDbContext<AppDbContext>(options =>
+// Add Entity Framework with SQLite or InMemory for testing
+if (builder.Environment.EnvironmentName == "Testing")
 {
-    // Railway-friendly database configuration
-    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
-    
-    if (string.IsNullOrEmpty(connectionString))
+    builder.Services.AddDbContext<AppDbContext>(options =>
     {
-        // Check if we're in Railway environment
-        var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
-        connectionString = isRailway 
-            ? "Data Source=/app/data/incomeexpense.db" 
-            : "Data Source=incomeexpense.db";
-    }
-    
-    options.UseSqlite(connectionString);
-});
+        options.UseInMemoryDatabase("TestDatabase");
+    });
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+    {
+        // Railway-friendly database configuration
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+        
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            // Check if we're in Railway environment
+            var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
+            connectionString = isRailway 
+                ? "Data Source=/app/data/incomeexpense.db" 
+                : "Data Source=incomeexpense.db";
+        }
+        
+        options.UseSqlite(connectionString);
+    });
+}
 
 // Add API Explorer and Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -92,3 +102,6 @@ app.MapGet("/health", () => new {
 });
 
 app.Run();
+
+// Make Program class accessible for integration tests
+public partial class Program { }
