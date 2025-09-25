@@ -14,10 +14,17 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     // Railway-friendly database configuration
-    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL") 
-        ?? (builder.Environment.IsProduction() 
+    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+    
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        // Check if we're in Railway environment
+        var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
+        connectionString = isRailway 
             ? "Data Source=/app/data/incomeexpense.db" 
-            : "Data Source=incomeexpense.db");
+            : "Data Source=incomeexpense.db";
+    }
+    
     options.UseSqlite(connectionString);
 });
 

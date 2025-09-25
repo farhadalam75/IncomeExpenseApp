@@ -230,13 +230,16 @@ namespace IncomeExpenseApp.Controllers
                 if (toDate.HasValue)
                     query = query.Where(t => t.Date <= toDate.Value);
 
-                var totalIncome = await query
+                // Load to memory first to avoid SQLite decimal sum issues
+                var allTransactions = await query.ToListAsync();
+                
+                var totalIncome = allTransactions
                     .Where(t => t.Type == TransactionType.Income)
-                    .SumAsync(t => t.Amount);
+                    .Sum(t => t.Amount);
 
-                var totalExpense = await query
+                var totalExpense = allTransactions
                     .Where(t => t.Type == TransactionType.Expense)
-                    .SumAsync(t => t.Amount);
+                    .Sum(t => t.Amount);
 
                 var balance = totalIncome - totalExpense;
 
