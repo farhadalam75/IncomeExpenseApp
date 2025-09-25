@@ -23,10 +23,14 @@ appsettings.*.json
 *.log
 logs/
 
-# Database
+# Database files (exclude from git but keep structure)
 *.mdf
 *.ldf
 *.sqlite
+*.db
+*.db-shm
+*.db-wal
+incomeexpense.db*
 
 # NuGet
 *.nupkg
@@ -59,3 +63,7 @@ wwwroot/
 # Secrets
 secrets.json
 .env
+
+# Railway deployment
+# Deployment platforms
+.railway/

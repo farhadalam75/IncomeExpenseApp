@@ -1,0 +1,13 @@
+{
+  "build": {
+    "commands": [
+      "dotnet restore",
+      "dotnet publish -c Release -o out"
+    ]
+  },
+  "start": {
+    "commands": [
+      "cd out && dotnet IncomeExpenseApp.dll"
+    ]
+  }
+}
