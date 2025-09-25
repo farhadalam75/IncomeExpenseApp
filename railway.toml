@@ -1,6 +1,5 @@
 # Railway.app Deployment Configuration
-
-This file tells Railway how to build and deploy your ASP.NET Core app.
+# This file tells Railway how to build and deploy your ASP.NET Core app.
 
 [build]
 builder = "nixpacks"
