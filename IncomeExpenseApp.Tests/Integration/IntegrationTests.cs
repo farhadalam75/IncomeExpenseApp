@@ -47,15 +47,49 @@ namespace IncomeExpenseApp.Tests.Integration
             // Clear existing data
             context.Transactions.RemoveRange(context.Transactions);
             context.Categories.RemoveRange(context.Categories);
+            if (context.Accounts.Any())
+            {
+                context.Accounts.RemoveRange(context.Accounts);
+            }
+            context.SaveChanges();
+
+            // Add test accounts first
+            var accounts = new[]
+            {
+                new Account 
+                { 
+                    Id = 1, 
+                    Name = "Test Cash Account", 
+                    Type = AccountType.Cash, 
+                    Icon = "💵", 
+                    Balance = 0, 
+                    IsDefault = true, 
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                },
+                new Account 
+                { 
+                    Id = 2, 
+                    Name = "Test Bank Account", 
+                    Type = AccountType.Bank, 
+                    Icon = "🏦", 
+                    Balance = 0, 
+                    IsDefault = true, 
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                }
+            };
+
+            context.Accounts.AddRange(accounts);
             context.SaveChanges();
 
             // Add test categories
             var categories = new[]
             {
-                new Category { Id = 1, Name = "Salary", Description = "Income from employment", Type = TransactionType.Income, IsDefault = true },
-                new Category { Id = 2, Name = "Food", Description = "Food and dining expenses", Type = TransactionType.Expense, IsDefault = true },
-                new Category { Id = 3, Name = "Transport", Description = "Transportation costs", Type = TransactionType.Expense, IsDefault = false },
-                new Category { Id = 4, Name = "Entertainment", Description = "Fun and entertainment", Type = TransactionType.Expense, IsDefault = false }
+                new Category { Id = 1, Name = "Salary", Description = "Income from employment", Type = TransactionType.Income, IsDefault = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 2, Name = "Food", Description = "Food and dining expenses", Type = TransactionType.Expense, IsDefault = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 3, Name = "Transport", Description = "Transportation costs", Type = TransactionType.Expense, IsDefault = false, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 4, Name = "Entertainment", Description = "Fun and entertainment", Type = TransactionType.Expense, IsDefault = false, CreatedAt = DateTime.UtcNow }
             };
 
             context.Categories.AddRange(categories);
@@ -71,8 +105,11 @@ namespace IncomeExpenseApp.Tests.Integration
                     Amount = 5000,
                     Type = TransactionType.Income,
                     Category = "Salary",
+                    AccountId = 1, // Use Test Cash Account
                     Date = DateTime.Today.AddDays(-1),
-                    Notes = "Monthly salary payment"
+                    Notes = "Monthly salary payment",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 },
                 new Transaction
                 {
@@ -81,12 +118,19 @@ namespace IncomeExpenseApp.Tests.Integration
                     Amount = 150,
                     Type = TransactionType.Expense,
                     Category = "Food",
+                    AccountId = 1, // Use Test Cash Account
                     Date = DateTime.Today,
-                    Notes = "Weekly groceries"
+                    Notes = "Weekly groceries",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 }
             };
 
             context.Transactions.AddRange(transactions);
+            context.SaveChanges();
+
+            // Update account balances
+            accounts[0].Balance = 5000m - 150m; // 4850
             context.SaveChanges();
         }
 
@@ -130,6 +174,7 @@ namespace IncomeExpenseApp.Tests.Integration
                 Amount = 200m,
                 Type = TransactionType.Expense,
                 Category = "Food",
+                AccountId = 1, // Use Test Cash Account
                 Date = DateTime.Today,
                 Notes = "Created via integration test"
             };
@@ -195,6 +240,7 @@ namespace IncomeExpenseApp.Tests.Integration
                 Amount = 5500m,
                 Type = TransactionType.Income,
                 Category = "Salary",
+                AccountId = 1, // Use Test Cash Account
                 Date = DateTime.Today,
                 Notes = "Updated salary amount"
             };

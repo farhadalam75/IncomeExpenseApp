@@ -82,6 +82,7 @@ namespace IncomeExpenseApp.Tests.Controllers
                 Amount = 100m,
                 Type = TransactionType.Income,
                 Category = "Test Category",
+                AccountId = 1, // Use the test account
                 Date = DateTime.Today,
                 Notes = "Test notes"
             };
@@ -132,6 +133,7 @@ namespace IncomeExpenseApp.Tests.Controllers
                 Amount = 5500m,
                 Type = TransactionType.Income,
                 Category = "Salary",
+                AccountId = 1, // Use the test account
                 Date = DateTime.Today,
                 Notes = "Updated notes"
             };

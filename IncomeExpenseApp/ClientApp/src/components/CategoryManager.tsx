@@ -10,6 +10,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   
   const [formData, setFormData] = useState<CategoryCreateDto>({
     name: '',
@@ -29,18 +30,10 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
       setCategories(response.data);
     } catch (err) {
       setError('Failed to load categories');
-      console.error('Category loading error:', err);
+      console.error('Error loading categories:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'type' ? parseInt(value) as TransactionType : value
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,7 +46,14 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
 
     try {
       setError(null);
-      await categoryApi.create(formData);
+      
+      if (editingCategory) {
+        // Update existing category
+        await categoryApi.update(editingCategory.id, formData);
+      } else {
+        // Create new category
+        await categoryApi.create(formData);
+      }
       
       // Reset form
       setFormData({
@@ -61,50 +61,127 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
         description: '',
         type: TransactionType.Expense,
       });
+      setEditingCategory(null);
       setShowForm(false);
       
       // Reload categories
       loadCategories();
     } catch (err: any) {
       if (err.response?.status === 400) {
-        setError('Category name already exists for this type');
+        setError(editingCategory ? 'Failed to update category' : 'Category name already exists for this type');
       } else {
-        setError('Failed to create category');
+        setError(editingCategory ? 'Failed to update category' : 'Failed to create category');
       }
-      console.error('Category creation error:', err);
+      console.error('Category operation error:', err);
     }
   };
 
-  const handleDelete = async (id: number, isDefault: boolean) => {
+  const handleDelete = async (categoryId: number, isDefault: boolean) => {
     if (isDefault) {
       setError('Cannot delete default categories');
       return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this category?')) {
-      return;
+    if (window.confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+      try {
+        setError(null);
+        await categoryApi.delete(categoryId);
+        loadCategories();
+      } catch (err) {
+        setError('Failed to delete category. It may still have associated transactions.');
+        console.error('Error deleting category:', err);
+      }
     }
+  };
 
-    try {
-      setError(null);
-      await categoryApi.delete(id);
-      setCategories(categories.filter(c => c.id !== id));
-    } catch (err) {
-      setError('Failed to delete category');
-      console.error('Category deletion error:', err);
-    }
+  const handleEdit = (category: Category) => {
+    setFormData({
+      name: category.name,
+      description: category.description || '',
+      type: category.type
+    });
+    setEditingCategory(category);
+    setShowForm(true);
+    setError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setShowForm(false);
+    setEditingCategory(null);
+    setFormData({
+      name: '',
+      description: '',
+      type: TransactionType.Expense,
+    });
+    setError(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: name === 'type' ? parseInt(value) as TransactionType : value 
+    }));
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
+      return 'Invalid Date';
+    }
   };
 
-  const incomeCategories = categories.filter(c => c.type === TransactionType.Income);
-  const expenseCategories = categories.filter(c => c.type === TransactionType.Expense);
+  // Filter categories by type
+  const incomeCategories = categories.filter(cat => cat.type === TransactionType.Income);
+  const expenseCategories = categories.filter(cat => cat.type === TransactionType.Expense);
+
+  const CategoryActions = ({ category }: { category: Category }) => (
+    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      {!category.isDefault ? (
+        <>
+          <button
+            onClick={() => handleEdit(category)}
+            className="btn btn-secondary"
+            style={{ 
+              padding: '0.25rem 0.5rem', 
+              fontSize: '0.75rem',
+              minWidth: '50px'
+            }}
+          >
+            ✏️ Edit
+          </button>
+          <button
+            onClick={() => handleDelete(category.id, category.isDefault)}
+            className="btn btn-danger"
+            style={{ 
+              padding: '0.25rem 0.5rem', 
+              fontSize: '0.75rem',
+              minWidth: '50px'
+            }}
+          >
+            🗑️ Delete
+          </button>
+        </>
+      ) : (
+        <span style={{ 
+          color: 'rgba(255, 255, 255, 0.5)', 
+          fontSize: '0.75rem',
+          fontStyle: 'italic'
+        }}>
+          System Default
+        </span>
+      )}
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="glass-card">
+        <div className="loading">Loading categories...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -112,37 +189,40 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        marginBottom: '2rem' 
+        marginBottom: '2rem',
+        flexWrap: 'wrap',
+        gap: '1rem'
       }}>
-        <h1 style={{ color: 'white', margin: 0 }}>
+        <h2 style={{ color: 'white', margin: 0, fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}>
           Category Management
-        </h1>
+        </h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="btn btn-primary"
+          style={{ whiteSpace: 'nowrap' }}
         >
-          {showForm ? 'Cancel' : 'Add New Category'}
+          {showForm ? 'Cancel' : '+ Add Category'}
         </button>
       </div>
 
       {error && (
-        <div style={{ 
-          background: 'rgba(248, 113, 113, 0.1)', 
-          border: '1px solid #f87171', 
-          color: '#f87171',
-          padding: '1rem',
-          borderRadius: '8px',
-          marginBottom: '1rem'
-        }}>
-          {error}
-          <button 
+        <div className="glass-card" style={{ marginBottom: '1rem' }}>
+          <div style={{ color: '#f87171', textAlign: 'center', padding: '1rem' }}>
+            {error}
+          </div>
+          <button
             onClick={() => setError(null)}
-            style={{ 
-              float: 'right', 
-              background: 'none', 
-              border: 'none', 
-              color: '#f87171', 
-              cursor: 'pointer' 
+            style={{
+              position: 'absolute',
+              top: '0.5rem',
+              right: '0.5rem',
+              background: 'none',
+              border: 'none',
+              color: '#f87171',
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              borderRadius: '4px',
             }}
           >
             ×
@@ -150,10 +230,12 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
         </div>
       )}
 
-      {/* Add Category Form */}
+      {/* Add/Edit Category Form */}
       {showForm && (
         <div className="glass-card" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: 'white', marginBottom: '1rem' }}>Add New Category</h3>
+          <h3 style={{ color: 'white', marginBottom: '1rem' }}>
+            {editingCategory ? 'Edit Category' : 'Add New Category'}
+          </h3>
           
           <form onSubmit={handleSubmit}>
             <div style={{ 
@@ -163,21 +245,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
               marginBottom: '1rem'
             }}>
               <div>
-                <label className="form-label">Type *</label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleInputChange}
-                  className="form-control"
-                  required
-                >
-                  <option value={TransactionType.Expense}>Expense</option>
-                  <option value={TransactionType.Income}>Income</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="form-label">Name *</label>
+                <label className="form-label">Category Name *</label>
                 <input
                   type="text"
                   name="name"
@@ -188,9 +256,30 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
                   required
                 />
               </div>
+
+              <div>
+                <label className="form-label">Type</label>
+                <select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  style={{ 
+                    color: 'white',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }}
+                >
+                  <option value={TransactionType.Income} style={{ backgroundColor: '#1f2937', color: 'white' }}>
+                    Income
+                  </option>
+                  <option value={TransactionType.Expense} style={{ backgroundColor: '#1f2937', color: 'white' }}>
+                    Expense
+                  </option>
+                </select>
+              </div>
             </div>
 
-            <div className="form-group">
+            <div style={{ marginBottom: '1rem' }}>
               <label className="form-label">Description</label>
               <textarea
                 name="description"
@@ -202,158 +291,147 @@ const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary">
-              Create Category
-            </button>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button type="submit" className="btn btn-primary">
+                {editingCategory ? 'Update Category' : 'Create Category'}
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}
 
-      {loading ? (
-        <div className="glass-card">
-          <div className="loading">Loading categories...</div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-          {/* Income Categories */}
-          <div className="glass-card">
-            <h3 style={{ color: '#4ade80', marginBottom: '1.5rem', textAlign: 'center' }}>
-              Income Categories ({incomeCategories.length})
-            </h3>
-            
-            {incomeCategories.length > 0 ? (
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Default</th>
-                      <th>Created</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {incomeCategories.map((category) => (
-                      <tr key={category.id}>
-                        <td>
-                          <div>
-                            <div style={{ fontWeight: 'bold' }}>{category.name}</div>
-                            {category.description && (
-                              <div style={{ 
-                                fontSize: '0.8rem', 
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                marginTop: '0.25rem'
-                              }}>
-                                {category.description}
-                              </div>
-                            )}
+      {/* Income Categories */}
+      <div className="glass-card" style={{ marginBottom: '2rem' }}>
+        <h3 style={{ color: '#4ade80', marginBottom: '1.5rem', textAlign: 'center' }}>
+          💰 Income Categories ({incomeCategories.length})
+        </h3>
+        
+        {incomeCategories.length > 0 ? (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Default</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incomeCategories.map((category) => (
+                  <tr key={category.id}>
+                    <td>
+                      <div>
+                        <div style={{ fontWeight: '600', color: 'white' }}>
+                          {category.name}
+                        </div>
+                        {category.description && (
+                          <div style={{ 
+                            fontSize: '0.8rem', 
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            marginTop: '0.25rem'
+                          }}>
+                            {category.description}
                           </div>
-                        </td>
-                        <td>
-                          {category.isDefault ? (
-                            <span style={{ color: '#4ade80' }}>Yes</span>
-                          ) : (
-                            <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>No</span>
-                          )}
-                        </td>
-                        <td>{formatDate(category.createdAt)}</td>
-                        <td>
-                          {!category.isDefault && (
-                            <button
-                              onClick={() => handleDelete(category.id, category.isDefault)}
-                              className="btn btn-danger"
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ 
-                textAlign: 'center', 
-                color: 'rgba(255, 255, 255, 0.7)', 
-                padding: '2rem' 
-              }}>
-                No income categories found
-              </div>
-            )}
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {category.isDefault ? (
+                        <span style={{ color: '#4ade80' }}>Yes</span>
+                      ) : (
+                        <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>No</span>
+                      )}
+                    </td>
+                    <td>{formatDate(category.createdAt)}</td>
+                    <td>
+                      <CategoryActions category={category} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        ) : (
+          <div style={{ 
+            textAlign: 'center', 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            padding: '2rem' 
+          }}>
+            No income categories found
+          </div>
+        )}
+      </div>
 
-          {/* Expense Categories */}
-          <div className="glass-card">
-            <h3 style={{ color: '#f87171', marginBottom: '1.5rem', textAlign: 'center' }}>
-              Expense Categories ({expenseCategories.length})
-            </h3>
-            
-            {expenseCategories.length > 0 ? (
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Default</th>
-                      <th>Created</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expenseCategories.map((category) => (
-                      <tr key={category.id}>
-                        <td>
-                          <div>
-                            <div style={{ fontWeight: 'bold' }}>{category.name}</div>
-                            {category.description && (
-                              <div style={{ 
-                                fontSize: '0.8rem', 
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                marginTop: '0.25rem'
-                              }}>
-                                {category.description}
-                              </div>
-                            )}
+      {/* Expense Categories */}
+      <div className="glass-card">
+        <h3 style={{ color: '#f87171', marginBottom: '1.5rem', textAlign: 'center' }}>
+          💸 Expense Categories ({expenseCategories.length})
+        </h3>
+        
+        {expenseCategories.length > 0 ? (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Default</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenseCategories.map((category) => (
+                  <tr key={category.id}>
+                    <td>
+                      <div>
+                        <div style={{ fontWeight: '600', color: 'white' }}>
+                          {category.name}
+                        </div>
+                        {category.description && (
+                          <div style={{ 
+                            fontSize: '0.8rem', 
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            marginTop: '0.25rem'
+                          }}>
+                            {category.description}
                           </div>
-                        </td>
-                        <td>
-                          {category.isDefault ? (
-                            <span style={{ color: '#4ade80' }}>Yes</span>
-                          ) : (
-                            <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>No</span>
-                          )}
-                        </td>
-                        <td>{formatDate(category.createdAt)}</td>
-                        <td>
-                          {!category.isDefault && (
-                            <button
-                              onClick={() => handleDelete(category.id, category.isDefault)}
-                              className="btn btn-danger"
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ 
-                textAlign: 'center', 
-                color: 'rgba(255, 255, 255, 0.7)', 
-                padding: '2rem' 
-              }}>
-                No expense categories found
-              </div>
-            )}
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {category.isDefault ? (
+                        <span style={{ color: '#4ade80' }}>Yes</span>
+                      ) : (
+                        <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>No</span>
+                      )}
+                    </td>
+                    <td>{formatDate(category.createdAt)}</td>
+                    <td>
+                      <CategoryActions category={category} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
+        ) : (
+          <div style={{ 
+            textAlign: 'center', 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            padding: '2rem' 
+          }}>
+            No expense categories found
+          </div>
+        )}
+      </div>
     </div>
   );
 });

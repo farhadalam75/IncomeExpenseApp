@@ -20,6 +20,7 @@ namespace IncomeExpenseApp.Models.DTOs
         public TransactionType Type { get; set; }
         public string? Description { get; set; }
         public bool IsDefault { get; set; }
+        public DateTime CreatedAt { get; set; }
         public int TransactionCount { get; set; }
         public decimal TotalAmount { get; set; }
     }

@@ -21,7 +21,13 @@ namespace IncomeExpenseApp.Models
         [StringLength(100)]
         public string Category { get; set; } = string.Empty;
         
+        [Required]
+        public int AccountId { get; set; }
+        
         public DateTime Date { get; set; } = DateTime.Now;
+        
+        // Navigation property
+        public Account? Account { get; set; }
         
         public string? Notes { get; set; }
         

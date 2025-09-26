@@ -1,56 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { transactionApi, categoryApi, accountApi, TransactionCreateDto, Category, TransactionType, Account } from '../services/api';
+import { accountApi, Account } from '../services/api';
 
-interface TransactionFormProps {
+interface TransferFormProps {
   onSuccess?: () => void;
   onBack?: () => void;
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) => {
-  const [formData, setFormData] = useState<TransactionCreateDto>({
-    description: '',
+const TransferForm: React.FC<TransferFormProps> = ({ onSuccess, onBack }) => {
+  const [formData, setFormData] = useState({
+    fromAccountId: 0,
+    toAccountId: 0,
     amount: 0,
-    type: TransactionType.Expense,
-    category: '',
-    accountId: 1, // Default to Cash account (ID 1)
+    description: '',
     date: new Date().toISOString().split('T')[0],
   });
 
-  const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    loadCategories();
     loadAccounts();
-  }, [formData.type]);
-
-  const loadCategories = async () => {
-    try {
-      const response = await categoryApi.getAll(formData.type);
-      setCategories(response.data);
-      // Auto-select first category if none selected
-      if (response.data.length > 0 && !formData.category) {
-        setFormData(prev => ({ ...prev, category: response.data[0].name }));
-      }
-    } catch (err) {
-      console.error('Failed to load categories:', err);
-    }
-  };
+  }, []);
 
   const loadAccounts = async () => {
     try {
       const response = await accountApi.getAll();
       setAccounts(response.data);
-      // Auto-select Cash account (ID 1) if none selected, or first account as fallback
-      if (response.data.length > 0 && !formData.accountId) {
-        const cashAccount = response.data.find(acc => acc.name === 'Cash') || response.data[0];
-        setFormData(prev => ({ ...prev, accountId: cashAccount.id }));
+      // Auto-select first two different accounts
+      if (response.data.length >= 2) {
+        setFormData(prev => ({
+          ...prev,
+          fromAccountId: response.data[0].id,
+          toAccountId: response.data[1].id
+        }));
       }
     } catch (err) {
       console.error('Failed to load accounts:', err);
+      setError('Failed to load accounts');
     }
   };
 
@@ -59,15 +47,26 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
     setFormData(prev => ({
       ...prev,
       [name]: name === 'amount' ? parseFloat(value) || 0 : 
-              name === 'type' ? parseInt(value) as TransactionType : value
+              name === 'fromAccountId' || name === 'toAccountId' ? parseInt(value) : value
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.amount <= 0 || !formData.category || !formData.accountId) {
-      setError('Please fill in all required fields (amount, category, account)');
+    if (formData.amount <= 0 || !formData.fromAccountId || !formData.toAccountId) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (formData.fromAccountId === formData.toAccountId) {
+      setError('Source and destination accounts must be different');
+      return;
+    }
+
+    const fromAccount = accounts.find(acc => acc.id === formData.fromAccountId);
+    if (fromAccount && fromAccount.balance < formData.amount) {
+      setError('Insufficient balance in source account');
       return;
     }
 
@@ -75,17 +74,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
       setLoading(true);
       setError(null);
       
-      await transactionApi.create(formData);
+      // Use the transfer API endpoint
+      await accountApi.transfer(formData);
       
       setSuccess(true);
       setFormData({
-        description: '',
+        fromAccountId: accounts.length >= 2 ? accounts[0].id : 0,
+        toAccountId: accounts.length >= 2 ? accounts[1].id : 0,
         amount: 0,
-        type: TransactionType.Expense,
-        category: categories.length > 0 ? categories[0].name : '',
-        accountId: accounts.length > 0 ? (accounts.find(acc => acc.name === 'Cash')?.id || accounts[0].id) : 1,
+        description: '',
         date: new Date().toISOString().split('T')[0],
       });
+
+      // Reload accounts to update balances
+      loadAccounts();
 
       setTimeout(() => {
         setSuccess(false);
@@ -95,11 +97,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
       }, 2000);
 
     } catch (err) {
-      setError('Failed to create transaction');
-      console.error('Transaction creation error:', err);
+      setError('Failed to transfer money');
+      console.error('Transfer error:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAvailableToAccounts = () => {
+    return accounts.filter(acc => acc.id !== formData.fromAccountId);
+  };
+
+  const getAvailableFromAccounts = () => {
+    return accounts.filter(acc => acc.id !== formData.toAccountId);
   };
 
   return (
@@ -118,7 +128,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
             margin: 0, 
             fontSize: 'clamp(1.25rem, 3vw, 1.75rem)'
           }}>
-            💰 Add Transaction
+            🔄 Transfer Money
           </h2>
           {onBack && (
             <button
@@ -153,17 +163,17 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
             borderRadius: '8px',
             marginBottom: '1rem'
           }}>
-            Transaction created successfully!
+            Money transferred successfully!
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* First Row: Account Selection */}
+          {/* First Row: From Account */}
           <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-            <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Account *</label>
+            <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>From Account *</label>
             <select
-              name="accountId"
-              value={formData.accountId}
+              name="fromAccountId"
+              value={formData.fromAccountId}
               onChange={handleInputChange}
               className="form-control"
               style={{ 
@@ -175,7 +185,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
               }}
               required
             >
-              {accounts.map((account) => (
+              <option value={0} style={{ backgroundColor: '#1e293b', color: 'white' }}>
+                Select source account
+              </option>
+              {getAvailableFromAccounts().map((account) => (
                 <option key={account.id} value={account.id} style={{ backgroundColor: '#1e293b', color: 'white' }}>
                   {account.icon} {account.name} (৳{account.balance.toFixed(2)})
                 </option>
@@ -183,38 +196,41 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
             </select>
           </div>
 
-          {/* Second Row: Type, Amount, Date */}
+          {/* Second Row: To Account */}
+          <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>To Account *</label>
+            <select
+              name="toAccountId"
+              value={formData.toAccountId}
+              onChange={handleInputChange}
+              className="form-control"
+              style={{ 
+                color: 'white',
+                backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                padding: '0.5rem',
+                fontSize: '0.875rem'
+              }}
+              required
+            >
+              <option value={0} style={{ backgroundColor: '#1e293b', color: 'white' }}>
+                Select destination account
+              </option>
+              {getAvailableToAccounts().map((account) => (
+                <option key={account.id} value={account.id} style={{ backgroundColor: '#1e293b', color: 'white' }}>
+                  {account.icon} {account.name} (৳{account.balance.toFixed(2)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Third Row: Amount and Date */}
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+            gridTemplateColumns: '1fr 1fr', 
             gap: '0.75rem',
             marginBottom: '0.75rem'
           }}>
-            <div className="form-group" style={{ marginBottom: '0' }}>
-              <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Type *</label>
-              <select
-                name="type"
-                value={formData.type}
-                onChange={handleInputChange}
-                className="form-control"
-                style={{ 
-                  color: 'white',
-                  backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '0.5rem',
-                  fontSize: '0.875rem'
-                }}
-                required
-              >
-                <option value={TransactionType.Expense} style={{ backgroundColor: '#1e293b', color: 'white' }}>
-                  💸 Expense
-                </option>
-                <option value={TransactionType.Income} style={{ backgroundColor: '#1e293b', color: 'white' }}>
-                  💰 Income
-                </option>
-              </select>
-            </div>
-
             <div className="form-group" style={{ marginBottom: '0' }}>
               <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Amount *</label>
               <input
@@ -245,35 +261,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
             </div>
           </div>
 
-          {/* Third Row: Category */}
-          <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-            <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Category *</label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleInputChange}
-              className="form-control"
-              style={{ 
-                color: 'white',
-                backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                padding: '0.5rem',
-                fontSize: '0.875rem'
-              }}
-              required
-            >
-              <option value="" style={{ backgroundColor: '#1e293b', color: 'white' }}>
-                Select category
-              </option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.name} style={{ backgroundColor: '#1e293b', color: 'white' }}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Fourth Row: Description (textarea like notes) */}
+          {/* Fourth Row: Description */}
           <div className="form-group" style={{ marginBottom: '1rem' }}>
             <label className="form-label" style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Description</label>
             <textarea
@@ -282,10 +270,35 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
               onChange={handleInputChange}
               className="form-control"
               style={{ padding: '0.5rem', fontSize: '0.875rem', minHeight: '60px' }}
-              placeholder="Enter transaction description (optional)"
+              placeholder="Enter transfer description (optional)"
               rows={2}
             />
           </div>
+
+          {/* Transfer Preview */}
+          {formData.fromAccountId && formData.toAccountId && formData.amount > 0 && (
+            <div style={{ 
+              background: 'rgba(59, 130, 246, 0.1)', 
+              border: '1px solid rgba(59, 130, 246, 0.3)', 
+              color: 'rgba(255, 255, 255, 0.9)',
+              padding: '1rem',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              fontSize: '0.875rem'
+            }}>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <strong>Transfer Preview:</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                <span>From: {accounts.find(acc => acc.id === formData.fromAccountId)?.name}</span>
+                <span style={{ color: '#ef4444' }}>-৳{formData.amount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>To: {accounts.find(acc => acc.id === formData.toAccountId)?.name}</span>
+                <span style={{ color: '#4ade80' }}>+৳{formData.amount.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -298,7 +311,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
               fontWeight: '600'
             }}
           >
-            {loading ? 'Creating...' : '✅ Create Transaction'}
+            {loading ? 'Transferring...' : '🔄 Transfer Money'}
           </button>
         </form>
       </div>
@@ -306,4 +319,4 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
   );
 };
 
-export default TransactionForm;
+export default TransferForm;

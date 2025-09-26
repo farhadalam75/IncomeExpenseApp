@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { categoryApi, Category, CategoryCreateDto, TransactionType } from '../services/api';
 
-const CategoryManager: React.FC = () => {
+interface CategoryManagerProps {
+  onBack?: () => void;
+}
+
+const CategoryManager: React.FC<CategoryManagerProps> = memo(({ onBack }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   
   const [formData, setFormData] = useState<CategoryCreateDto>({
     name: '',
@@ -49,7 +54,14 @@ const CategoryManager: React.FC = () => {
 
     try {
       setError(null);
-      await categoryApi.create(formData);
+      
+      if (editingCategory) {
+        // Update existing category
+        await categoryApi.update(editingCategory.id, formData);
+      } else {
+        // Create new category
+        await categoryApi.create(formData);
+      }
       
       // Reset form
       setFormData({
@@ -57,17 +69,18 @@ const CategoryManager: React.FC = () => {
         description: '',
         type: TransactionType.Expense,
       });
+      setEditingCategory(null);
       setShowForm(false);
       
       // Reload categories
       loadCategories();
     } catch (err: any) {
       if (err.response?.status === 400) {
-        setError('Category name already exists for this type');
+        setError(editingCategory ? 'Failed to update category' : 'Category name already exists for this type');
       } else {
-        setError('Failed to create category');
+        setError(editingCategory ? 'Failed to update category' : 'Failed to create category');
       }
-      console.error('Category creation error:', err);
+      console.error('Category operation error:', err);
     }
   };
 
@@ -146,10 +159,12 @@ const CategoryManager: React.FC = () => {
         </div>
       )}
 
-      {/* Add Category Form */}
+      {/* Add/Edit Category Form */}
       {showForm && (
         <div className="glass-card" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: 'white', marginBottom: '1rem' }}>Add New Category</h3>
+          <h3 style={{ color: 'white', marginBottom: '1rem' }}>
+            {editingCategory ? 'Edit Category' : 'Add New Category'}
+          </h3>
           
           <form onSubmit={handleSubmit}>
             <div style={{ 
@@ -198,9 +213,27 @@ const CategoryManager: React.FC = () => {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary">
-              Create Category
-            </button>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button type="submit" className="btn btn-primary">
+                {editingCategory ? 'Update Category' : 'Create Category'}
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingCategory(null);
+                  setFormData({
+                    name: '',
+                    description: '',
+                    type: TransactionType.Expense,
+                  });
+                  setError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -352,6 +385,6 @@ const CategoryManager: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default CategoryManager;

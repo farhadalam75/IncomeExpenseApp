@@ -6,8 +6,9 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const TransactionForm = lazy(() => import('./components/TransactionForm'));
 const TransactionList = lazy(() => import('./components/TransactionList'));
 const CategoryManager = lazy(() => import('./components/CategoryManager'));
+const TransferForm = lazy(() => import('./components/TransferForm'));
 
-type Page = 'dashboard' | 'add-transaction' | 'transactions' | 'categories';
+type Page = 'dashboard' | 'add-transaction' | 'transactions' | 'categories' | 'transfer';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -50,6 +51,8 @@ function App() {
               return <Dashboard onNavigate={navigateToPage} />;
             case 'add-transaction':
               return <TransactionForm onSuccess={() => navigateToPage('transactions')} onBack={goBack} />;
+            case 'transfer':
+              return <TransferForm onSuccess={() => navigateToPage('dashboard')} onBack={goBack} />;
             case 'transactions':
               return <TransactionList onNavigate={navigateToPage} onBack={goBack} />;
             case 'categories':
@@ -68,6 +71,8 @@ function App() {
         return 'Dashboard';
       case 'add-transaction':
         return 'Add Transaction';
+      case 'transfer':
+        return 'Transfer Money';
       case 'transactions':
         return 'Transactions';
       case 'categories':
@@ -101,6 +106,13 @@ function App() {
               title="Add Transaction"
             >
               + Add
+            </button>
+            <button 
+              className="quick-btn transfer-btn"
+              onClick={() => navigateToPage('transfer')}
+              title="Transfer Money"
+            >
+              🔄 Transfer
             </button>
             <button 
               className="quick-btn view-btn"

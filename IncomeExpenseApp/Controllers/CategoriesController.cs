@@ -54,6 +54,7 @@ namespace IncomeExpenseApp.Controllers
                         Type = category.Type,
                         Description = category.Description,
                         IsDefault = category.IsDefault,
+                        CreatedAt = category.CreatedAt,
                         TransactionCount = transactions.Count,
                         TotalAmount = transactions.Sum(t => t.Amount)
                     });
@@ -92,6 +93,7 @@ namespace IncomeExpenseApp.Controllers
                     Type = category.Type,
                     Description = category.Description,
                     IsDefault = category.IsDefault,
+                    CreatedAt = category.CreatedAt,
                     TransactionCount = transactions.Count,
                     TotalAmount = transactions.Sum(t => t.Amount)
                 };
@@ -139,6 +141,7 @@ namespace IncomeExpenseApp.Controllers
                     Type = category.Type,
                     Description = category.Description,
                     IsDefault = category.IsDefault,
+                    CreatedAt = category.CreatedAt,
                     TransactionCount = 0,
                     TotalAmount = 0
                 };
@@ -196,6 +199,7 @@ namespace IncomeExpenseApp.Controllers
                     Type = category.Type,
                     Description = category.Description,
                     IsDefault = category.IsDefault,
+                    CreatedAt = category.CreatedAt,
                     TransactionCount = transactions.Count,
                     TotalAmount = transactions.Sum(t => t.Amount)
                 };

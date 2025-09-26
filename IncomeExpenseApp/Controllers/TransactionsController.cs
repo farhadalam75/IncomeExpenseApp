@@ -48,6 +48,7 @@ namespace IncomeExpenseApp.Controllers
 
                 // Apply pagination
                 var transactions = await query
+                    .Include(t => t.Account)
                     .OrderByDescending(t => t.Date)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
@@ -58,6 +59,9 @@ namespace IncomeExpenseApp.Controllers
                         Amount = t.Amount,
                         Type = t.Type,
                         Category = t.Category,
+                        AccountId = t.AccountId,
+                        AccountName = t.Account!.Name,
+                        AccountIcon = t.Account!.Icon,
                         Date = t.Date,
                         Notes = t.Notes,
                         CreatedAt = t.CreatedAt,
@@ -80,7 +84,9 @@ namespace IncomeExpenseApp.Controllers
         {
             try
             {
-                var transaction = await _context.Transactions.FindAsync(id);
+                var transaction = await _context.Transactions
+                    .Include(t => t.Account)
+                    .FirstOrDefaultAsync(t => t.Id == id);
 
                 if (transaction == null)
                 {
@@ -94,6 +100,9 @@ namespace IncomeExpenseApp.Controllers
                     Amount = transaction.Amount,
                     Type = transaction.Type,
                     Category = transaction.Category,
+                    AccountId = transaction.AccountId,
+                    AccountName = transaction.Account?.Name,
+                    AccountIcon = transaction.Account?.Icon,
                     Date = transaction.Date,
                     Notes = transaction.Notes,
                     CreatedAt = transaction.CreatedAt,
@@ -120,17 +129,36 @@ namespace IncomeExpenseApp.Controllers
                     return BadRequest(ModelState);
                 }
 
+                // Verify account exists
+                var account = await _context.Accounts.FindAsync(createDto.AccountId);
+                if (account == null)
+                {
+                    return BadRequest("Invalid account ID.");
+                }
+
                 var transaction = new Transaction
                 {
                     Description = createDto.Description,
                     Amount = createDto.Amount,
                     Type = createDto.Type,
                     Category = createDto.Category,
+                    AccountId = createDto.AccountId,
                     Date = createDto.Date,
                     Notes = createDto.Notes
                 };
 
                 _context.Transactions.Add(transaction);
+                
+                // Update account balance
+                if (transaction.Type == TransactionType.Income)
+                {
+                    account.Balance += transaction.Amount;
+                }
+                else
+                {
+                    account.Balance -= transaction.Amount;
+                }
+                
                 await _context.SaveChangesAsync();
 
                 var responseDto = new TransactionResponseDto
@@ -140,6 +168,9 @@ namespace IncomeExpenseApp.Controllers
                     Amount = transaction.Amount,
                     Type = transaction.Type,
                     Category = transaction.Category,
+                    AccountId = transaction.AccountId,
+                    AccountName = account.Name,
+                    AccountIcon = account.Icon,
                     Date = transaction.Date,
                     Notes = transaction.Notes,
                     CreatedAt = transaction.CreatedAt,
@@ -166,18 +197,66 @@ namespace IncomeExpenseApp.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var transaction = await _context.Transactions.FindAsync(id);
+                var transaction = await _context.Transactions
+                    .Include(t => t.Account)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+                    
                 if (transaction == null)
                 {
                     return NotFound($"Transaction with ID {id} not found");
+                }
+
+                // Store old values for balance adjustment
+                var oldAmount = transaction.Amount;
+                var oldType = transaction.Type;
+                var oldAccountId = transaction.AccountId;
+
+                // Verify new account exists if changed
+                if (updateDto.AccountId != transaction.AccountId)
+                {
+                    var newAccount = await _context.Accounts.FindAsync(updateDto.AccountId);
+                    if (newAccount == null)
+                    {
+                        return BadRequest("Invalid account ID.");
+                    }
                 }
 
                 transaction.Description = updateDto.Description;
                 transaction.Amount = updateDto.Amount;
                 transaction.Type = updateDto.Type;
                 transaction.Category = updateDto.Category;
+                transaction.AccountId = updateDto.AccountId;
                 transaction.Date = updateDto.Date;
                 transaction.Notes = updateDto.Notes;
+
+                // Adjust account balances
+                // First, reverse the old transaction
+                var oldAccount = await _context.Accounts.FindAsync(oldAccountId);
+                if (oldAccount != null)
+                {
+                    if (oldType == TransactionType.Income)
+                    {
+                        oldAccount.Balance -= oldAmount;
+                    }
+                    else
+                    {
+                        oldAccount.Balance += oldAmount;
+                    }
+                }
+
+                // Then, apply the new transaction
+                var updatedAccount = await _context.Accounts.FindAsync(updateDto.AccountId);
+                if (updatedAccount != null)
+                {
+                    if (transaction.Type == TransactionType.Income)
+                    {
+                        updatedAccount.Balance += transaction.Amount;
+                    }
+                    else
+                    {
+                        updatedAccount.Balance -= transaction.Amount;
+                    }
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -196,10 +275,26 @@ namespace IncomeExpenseApp.Controllers
         {
             try
             {
-                var transaction = await _context.Transactions.FindAsync(id);
+                var transaction = await _context.Transactions
+                    .Include(t => t.Account)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+                    
                 if (transaction == null)
                 {
                     return NotFound($"Transaction with ID {id} not found");
+                }
+
+                // Reverse the transaction from account balance
+                if (transaction.Account != null)
+                {
+                    if (transaction.Type == TransactionType.Income)
+                    {
+                        transaction.Account.Balance -= transaction.Amount;
+                    }
+                    else
+                    {
+                        transaction.Account.Balance += transaction.Amount;
+                    }
                 }
 
                 _context.Transactions.Remove(transaction);

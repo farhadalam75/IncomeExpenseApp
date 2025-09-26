@@ -118,18 +118,25 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
   }, [appliedFilters, draftFilters]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    return `৳${amount.toLocaleString('en-BD', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    try {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return 'Invalid Date';
+    }
   };
 
   return (
@@ -154,10 +161,14 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
               value={draftFilters.type}
               onChange={handleFilterChange}
               className="form-control"
+              style={{ 
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              }}
             >
-              <option value="">All Types</option>
-              <option value={TransactionType.Income}>Income</option>
-              <option value={TransactionType.Expense}>Expense</option>
+              <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>All Types</option>
+              <option value={TransactionType.Income} style={{ backgroundColor: '#1f2937', color: 'white' }}>Income</option>
+              <option value={TransactionType.Expense} style={{ backgroundColor: '#1f2937', color: 'white' }}>Expense</option>
             </select>
           </div>
 
@@ -168,10 +179,14 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
               value={draftFilters.category}
               onChange={handleFilterChange}
               className="form-control"
+              style={{ 
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              }}
             >
-              <option value="">All Categories</option>
+              <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>All Categories</option>
               {filteredCategories.map((category) => (
-                <option key={category.id} value={category.name}>
+                <option key={category.id} value={category.name} style={{ backgroundColor: '#1f2937', color: 'white' }}>
                   {category.name}
                 </option>
               ))}
@@ -252,28 +267,39 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction) => (
+                {transactions.map((transaction) => {
+                  const isTransfer = transaction.category === 'Transfer';
+                  return (
                   <tr key={transaction.id}>
                     <td>{formatDate(transaction.date)}</td>
                     <td>{transaction.description}</td>
-                    <td>{transaction.category}</td>
+                    <td>
+                      {isTransfer && (
+                        <span style={{ marginRight: '0.5rem' }}>↔️</span>
+                      )}
+                      {transaction.category}
+                    </td>
                     <td>
                       <span
                         style={{
-                          color: transaction.type === TransactionType.Income ? '#4ade80' : '#f87171',
+                          color: isTransfer ? '#8b5cf6' :
+                                 transaction.type === TransactionType.Income ? '#4ade80' : '#fbbf24',
                           fontWeight: 'bold',
                         }}
                       >
-                        {transaction.type === TransactionType.Income ? 'Income' : 'Expense'}
+                        {isTransfer ? 'Transfer' :
+                         transaction.type === TransactionType.Income ? 'Income' : 'Expense'}
                       </span>
                     </td>
                     <td
                       style={{
-                        color: transaction.type === TransactionType.Income ? '#4ade80' : '#f87171',
+                        color: isTransfer ? '#8b5cf6' : 
+                               transaction.type === TransactionType.Income ? '#4ade80' : '#fbbf24',
                         fontWeight: 'bold',
                       }}
                     >
-                      {transaction.type === TransactionType.Income ? '+' : '-'}
+                      {isTransfer ? '↔️' : 
+                       transaction.type === TransactionType.Income ? '+' : '-'}
                       {formatCurrency(Math.abs(transaction.amount))}
                     </td>
                     <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -289,7 +315,8 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

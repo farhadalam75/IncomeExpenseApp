@@ -6,6 +6,7 @@ namespace IncomeExpenseApp.Models.DTOs
         public decimal Amount { get; set; }
         public TransactionType Type { get; set; }
         public string Category { get; set; } = string.Empty;
+        public int AccountId { get; set; }
         public DateTime Date { get; set; } = DateTime.Now;
         public string? Notes { get; set; }
     }
@@ -16,6 +17,7 @@ namespace IncomeExpenseApp.Models.DTOs
         public decimal Amount { get; set; }
         public TransactionType Type { get; set; }
         public string Category { get; set; } = string.Empty;
+        public int AccountId { get; set; }
         public DateTime Date { get; set; }
         public string? Notes { get; set; }
     }
@@ -28,6 +30,9 @@ namespace IncomeExpenseApp.Models.DTOs
         public TransactionType Type { get; set; }
         public string TypeName => Type.ToString();
         public string Category { get; set; } = string.Empty;
+        public int AccountId { get; set; }
+        public string? AccountName { get; set; }
+        public string? AccountIcon { get; set; }
         public DateTime Date { get; set; }
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
