@@ -9,6 +9,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [summary, setSummary] = useState<any>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [recentTransfers, setRecentTransfers] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
@@ -32,12 +33,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       // Load summary, recent transactions, and accounts in parallel
       const [summaryResponse, transactionsResponse, accountsResponse] = await Promise.all([
         transactionApi.getSummary(fromDate, toDate),
-        transactionApi.getAll({ pageSize: 5, fromDate, toDate }),
+        transactionApi.getAll({ pageSize: 10, fromDate, toDate }),
         accountApi.getAll()
       ]);
 
       setSummary(summaryResponse.data);
-      setRecentTransactions(transactionsResponse.data);
+      
+      // Separate transfers from regular transactions
+      const allTransactions = transactionsResponse.data;
+      const regularTransactions = allTransactions.filter(t => t.category !== 'Transfer').slice(0, 5);
+      const transfers = allTransactions.filter(t => t.category === 'Transfer').slice(0, 5);
+      
+      setRecentTransactions(regularTransactions);
+      setRecentTransfers(transfers);
       setAccounts(accountsResponse.data);
     } catch (err) {
       setError('Failed to load dashboard data');
@@ -91,7 +99,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   return (
     <div>
       <h1 style={{ color: 'white', marginBottom: '2rem', textAlign: 'center', fontSize: 'clamp(1.8rem, 4vw, 2.5rem)' }}>
-        📊 Income Expense Tracker
+        📊 Dashboard
       </h1>
       
       {/* Date Filters */}
@@ -386,6 +394,148 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* Charts Section */}
+      {summary && (
+        <div className="glass-card" style={{ marginTop: '2rem' }}>
+          <h2 style={{ color: 'white', marginBottom: '1.5rem' }}>
+            Financial Overview
+          </h2>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+            gap: '2rem' 
+          }}>
+            {/* Income vs Expense Chart */}
+            <div>
+              <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.1rem' }}>
+                Income vs Expenses
+              </h3>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'end', 
+                height: '200px', 
+                gap: '1rem',
+                padding: '1rem',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.05)'
+              }}>
+                {/* Income Bar */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  flex: 1
+                }}>
+                  <div style={{
+                    width: '60px',
+                    height: `${Math.max((summary.totalIncome / Math.max(summary.totalIncome, summary.totalExpense, 1)) * 150, 10)}px`,
+                    background: 'linear-gradient(180deg, #4ade80, #22c55e)',
+                    borderRadius: '4px 4px 0 0',
+                    marginBottom: '0.5rem',
+                    transition: 'height 0.3s ease'
+                  }}></div>
+                  <div style={{ color: '#4ade80', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    {formatCurrency(summary.totalIncome)}
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.8rem' }}>
+                    Income
+                  </div>
+                </div>
+
+                {/* Expense Bar */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  flex: 1
+                }}>
+                  <div style={{
+                    width: '60px',
+                    height: `${Math.max((summary.totalExpense / Math.max(summary.totalIncome, summary.totalExpense, 1)) * 150, 10)}px`,
+                    background: 'linear-gradient(180deg, #fbbf24, #f59e0b)',
+                    borderRadius: '4px 4px 0 0',
+                    marginBottom: '0.5rem',
+                    transition: 'height 0.3s ease'
+                  }}></div>
+                  <div style={{ color: '#fbbf24', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    {formatCurrency(summary.totalExpense)}
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.8rem' }}>
+                    Expenses
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Account Balance Pie Chart */}
+            <div>
+              <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.1rem' }}>
+                Account Balances
+              </h3>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '0.8rem',
+                padding: '1rem',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.05)'
+              }}>
+                {accounts.map((account, index) => {
+                  const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 1);
+                  const percentage = Math.max((account.balance / totalBalance) * 100, 0);
+                  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                  const color = colors[index % colors.length];
+                  
+                  return (
+                    <div key={account.id} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        backgroundColor: color,
+                        borderRadius: '2px'
+                      }}></div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          marginBottom: '0.2rem'
+                        }}>
+                          <span style={{ color: 'white', fontSize: '0.9rem' }}>
+                            {account.icon} {account.name}
+                          </span>
+                          <span style={{ color: color, fontSize: '0.9rem', fontWeight: 'bold' }}>
+                            {formatCurrency(account.balance)}
+                          </span>
+                        </div>
+                        <div style={{
+                          width: '100%',
+                          height: '6px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${percentage}%`,
+                            height: '100%',
+                            backgroundColor: color,
+                            borderRadius: '3px',
+                            transition: 'width 0.3s ease'
+                          }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Recent Transactions */}
       <div className="glass-card" style={{ marginTop: '2rem' }}>
         <h2 style={{ color: 'white', marginBottom: '1.5rem' }}>
@@ -405,50 +555,85 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody>
-                {recentTransactions.map((transaction) => {
-                  const isTransfer = transaction.category === 'Transfer';
-                  return (
+                {recentTransactions.map((transaction) => (
                   <tr key={transaction.id}>
                     <td>{formatDate(transaction.date)}</td>
                     <td>{transaction.description}</td>
-                    <td>
-                      {isTransfer && (
-                        <span style={{ marginRight: '0.5rem' }}>↔️</span>
-                      )}
-                      {transaction.category}
-                    </td>
+                    <td>{transaction.category}</td>
                     <td>
                       <span
                         style={{
-                          color: isTransfer ? '#8b5cf6' :
-                                 transaction.type === TransactionType.Income ? '#4ade80' : '#fbbf24',
+                          color: transaction.type === TransactionType.Income ? '#4ade80' : '#fbbf24',
                           fontWeight: 'bold',
                         }}
                       >
-                        {isTransfer ? 'Transfer' :
-                         transaction.type === TransactionType.Income ? 'Income' : 'Expense'}
+                        {transaction.type === TransactionType.Income ? 'Income' : 'Expense'}
                       </span>
                     </td>
                     <td
                       style={{
-                        color: isTransfer ? '#8b5cf6' :
-                               transaction.type === TransactionType.Income ? '#4ade80' : '#fbbf24',
+                        color: transaction.type === TransactionType.Income ? '#4ade80' : '#fbbf24',
                         fontWeight: 'bold',
                       }}
                     >
-                      {isTransfer ? '↔️' : 
-                       transaction.type === TransactionType.Income ? '+' : '-'}
+                      {transaction.type === TransactionType.Income ? '+' : '-'}
                       {formatCurrency(Math.abs(transaction.amount))}
                     </td>
                   </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           </div>
         ) : (
           <div style={{ textAlign: 'center', color: 'rgba(255, 255, 255, 0.7)', padding: '2rem' }}>
             No transactions found. Start by adding your first transaction!
+          </div>
+        )}
+      </div>
+
+      {/* Recent Transfers */}
+      <div className="glass-card" style={{ marginTop: '2rem' }}>
+        <h2 style={{ color: 'white', marginBottom: '1.5rem' }}>
+          💸 Recent Transfers
+        </h2>
+        
+        {recentTransfers.length > 0 ? (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>From/To Account</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTransfers.map((transfer) => (
+                  <tr key={transfer.id}>
+                    <td>{formatDate(transfer.date)}</td>
+                    <td>{transfer.description}</td>
+                    <td>
+                      <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>
+                        {transfer.accountIcon} {transfer.accountName}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        color: '#8b5cf6',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      ↔️ {formatCurrency(Math.abs(transfer.amount))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', color: 'rgba(255, 255, 255, 0.7)', padding: '2rem' }}>
+            No recent transfers found. Use the Transfer Money feature to move funds between accounts!
           </div>
         )}
       </div>

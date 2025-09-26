@@ -325,17 +325,17 @@ namespace IncomeExpenseApp.Controllers
                 if (toDate.HasValue)
                     query = query.Where(t => t.Date <= toDate.Value);
 
-                // Select only the columns we need to avoid CategoryId issues
+                // Select only the columns we need and exclude transfers from totals
                 var allTransactions = await query
-                    .Select(t => new { t.Amount, t.Type })
+                    .Select(t => new { t.Amount, t.Type, t.Category })
                     .ToListAsync();
                 
                 var totalIncome = allTransactions
-                    .Where(t => t.Type == TransactionType.Income)
+                    .Where(t => t.Type == TransactionType.Income && t.Category != "Transfer")
                     .Sum(t => t.Amount);
 
                 var totalExpense = allTransactions
-                    .Where(t => t.Type == TransactionType.Expense)
+                    .Where(t => t.Type == TransactionType.Expense && t.Category != "Transfer")
                     .Sum(t => t.Amount);
 
                 var balance = totalIncome - totalExpense;

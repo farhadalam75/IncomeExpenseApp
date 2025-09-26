@@ -17,6 +17,9 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: string;
+  accountId: number;
+  accountName?: string;
+  accountIcon?: string;
   date: string;
   notes?: string;
   createdAt: string;
