@@ -60,10 +60,9 @@ node_modules/
 dist/
 wwwroot/
 
-# Capacitor
+# Capacitor - only ignore generated platforms
 IncomeExpenseApp/ClientApp/android/
 IncomeExpenseApp/ClientApp/ios/
-IncomeExpenseApp/ClientApp/.capacitor/
 
 # Secrets
 secrets.json

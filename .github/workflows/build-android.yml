@@ -52,10 +52,9 @@ jobs:
       working-directory: ./IncomeExpenseApp/ClientApp
       run: rm -rf android
 
-    - name: Initialize fresh Capacitor project
+    - name: Add Android platform and sync
       working-directory: ./IncomeExpenseApp/ClientApp
       run: |
-        npx cap init "Income Expense App" "com.incomeexpense.app" --web-dir=build
         npx cap add android
         npx cap sync android
 
