@@ -148,6 +148,9 @@ export const transactionApi = {
     api.get<Summary>('/transactions/summary', { 
       params: { fromDate, toDate } 
     }),
+
+  // Delete all transactions
+  deleteAll: () => api.delete('/transactions/all'),
 };
 
 export const categoryApi = {

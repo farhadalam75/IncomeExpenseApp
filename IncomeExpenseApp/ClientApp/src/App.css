@@ -991,3 +991,134 @@ select.form-control option {
     padding: 0.4rem 0.8rem;
   }
 }
+
+/* Mobile-First Navigation Optimization */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.95) 0%, 
+    rgba(139, 92, 246, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-nav .nav-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 0.25rem;
+  border: none;
+  background: transparent;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.nav-text {
+  font-size: 0.7rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hide text on very small screens (icons only) */
+@media (max-width: 480px) {
+  .nav-text {
+    display: none;
+  }
+  
+  .mobile-nav .nav-link {
+    padding: 0.75rem 0.25rem;
+  }
+  
+  .nav-icon {
+    font-size: 1.4rem;
+  }
+}
+
+/* Adjust main content for fixed bottom navigation */
+.main-content {
+  padding: 1rem;
+  padding-bottom: 80px; /* Space for fixed navigation */
+  min-height: calc(100vh - 140px); /* Adjust for header and navigation */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: transparent;
+}
+
+/* Mobile-friendly table improvements */
+@media (max-width: 768px) {
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .table th,
+  .table td {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  
+  /* Hide less important columns on small screens */
+  .table th:nth-child(3), /* Category */
+  .table td:nth-child(3) {
+    display: none;
+  }
+  
+  /* Make description column shorter */
+  .table th:nth-child(2),
+  .table td:nth-child(2) {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Desktop: Keep traditional navigation */
+@media (min-width: 768px) {
+  .mobile-nav {
+    position: static;
+    background: transparent;
+    backdrop-filter: none;
+    border-top: none;
+    box-shadow: none;
+    padding: 0;
+  }
+  
+  .mobile-nav .nav-link {
+    flex-direction: row;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+  }
+  
+  .nav-text {
+    display: block !important;
+    font-size: 0.8rem;
+  }
+  
+  .nav-icon {
+    font-size: 1rem;
+  }
+  
+  .main-content {
+    padding-bottom: 2rem;
+    min-height: calc(100vh - 120px);
+  }
+}

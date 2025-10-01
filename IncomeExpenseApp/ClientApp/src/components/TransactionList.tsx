@@ -262,7 +262,6 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
                   <th>Category</th>
                   <th>Type</th>
                   <th>Amount</th>
-                  <th>Notes</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -301,9 +300,6 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
                       {isTransfer ? '↔️' : 
                        transaction.type === TransactionType.Income ? '+' : '-'}
                       {formatCurrency(Math.abs(transaction.amount))}
-                    </td>
-                    <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {transaction.notes || '-'}
                     </td>
                     <td>
                       <button

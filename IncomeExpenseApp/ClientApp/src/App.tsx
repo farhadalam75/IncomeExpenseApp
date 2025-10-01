@@ -7,8 +7,9 @@ const TransactionForm = lazy(() => import('./components/TransactionForm'));
 const TransactionList = lazy(() => import('./components/TransactionList'));
 const CategoryManager = lazy(() => import('./components/CategoryManager'));
 const TransferForm = lazy(() => import('./components/TransferForm'));
+const Settings = lazy(() => import('./components/Settings'));
 
-type Page = 'dashboard' | 'add-transaction' | 'transactions' | 'categories' | 'transfer';
+type Page = 'dashboard' | 'add-transaction' | 'transactions' | 'categories' | 'transfer' | 'settings';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -57,6 +58,8 @@ function App() {
               return <TransactionList onNavigate={navigateToPage} onBack={goBack} />;
             case 'categories':
               return <CategoryManager onBack={goBack} />;
+            case 'settings':
+              return <Settings />;
             default:
               return <Dashboard onNavigate={navigateToPage} />;
           }
@@ -77,6 +80,8 @@ function App() {
         return 'Transactions';
       case 'categories':
         return 'Categories';
+      case 'settings':
+        return 'Settings';
       default:
         return 'Dashboard';
     }
@@ -98,63 +103,47 @@ function App() {
             )}
           </div>
 
-          {/* Quick Action Buttons */}
-          <div className="nav-actions">
-            <button 
-              className="quick-btn add-btn"
-              onClick={() => navigateToPage('add-transaction')}
-              title="Add Transaction"
-            >
-              + Add
-            </button>
-            <button 
-              className="quick-btn transfer-btn"
-              onClick={() => navigateToPage('transfer')}
-              title="Transfer Money"
-            >
-              🔄 Transfer
-            </button>
-            <button 
-              className="quick-btn view-btn"
-              onClick={() => navigateToPage('transactions')}
-              title="View Transactions"
-            >
-              📊 View
-            </button>
-            <button 
-              className="quick-btn settings-btn"
-              onClick={() => navigateToPage('categories')}
-              title="Manage Categories"
-            >
-              ⚙️ Settings
-            </button>
-          </div>
-
-          {/* Main Navigation */}
-          <div className="nav-links">
+          {/* Mobile-Optimized Navigation */}
+          <div className="nav-links mobile-nav">
             <button 
               className={`nav-link ${currentPage === 'dashboard' ? 'active' : ''}`}
               onClick={() => navigateToPage('dashboard')}
+              title="Dashboard"
             >
-              Dashboard
+              <span className="nav-icon">🏠</span>
+              <span className="nav-text">Dashboard</span>
             </button>
             <button 
               className={`nav-link ${currentPage === 'add-transaction' ? 'active' : ''}`}
               onClick={() => navigateToPage('add-transaction')}
+              title="Add Transaction"
             >
-              Add Transaction
+              <span className="nav-icon">➕</span>
+              <span className="nav-text">Add</span>
+            </button>
+            <button 
+              className={`nav-link ${currentPage === 'transfer' ? 'active' : ''}`}
+              onClick={() => navigateToPage('transfer')}
+              title="Transfer Money"
+            >
+              <span className="nav-icon">🔄</span>
+              <span className="nav-text">Transfer</span>
             </button>
             <button 
               className={`nav-link ${currentPage === 'transactions' ? 'active' : ''}`}
               onClick={() => navigateToPage('transactions')}
+              title="View Transactions"
             >
-              Transactions
+              <span className="nav-icon">📊</span>
+              <span className="nav-text">View</span>
             </button>
             <button 
-              className={`nav-link ${currentPage === 'categories' ? 'active' : ''}`}
-              onClick={() => navigateToPage('categories')}
+              className={`nav-link ${currentPage === 'settings' ? 'active' : ''}`}
+              onClick={() => navigateToPage('settings')}
+              title="Settings"
             >
-              Categories
+              <span className="nav-icon">⚙️</span>
+              <span className="nav-text">Settings</span>
             </button>
           </div>
         </div>

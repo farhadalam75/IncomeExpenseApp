@@ -378,5 +378,50 @@ namespace IncomeExpenseApp.Controllers
                 return StatusCode(500, "An error occurred while retrieving categories");
             }
         }
+
+        // DELETE: api/transactions/all
+        [HttpDelete("all")]
+        public async Task<ActionResult> DeleteAllTransactions()
+        {
+            try
+            {
+                _logger.LogInformation("Starting to delete all transactions");
+
+                // Get all transactions
+                var allTransactions = await _context.Transactions.ToListAsync();
+                var transactionCount = allTransactions.Count;
+
+                if (transactionCount == 0)
+                {
+                    return Ok(new { message = "No transactions to delete", deletedCount = 0 });
+                }
+
+                // Remove all transactions
+                _context.Transactions.RemoveRange(allTransactions);
+
+                // Reset all account balances to 0
+                var allAccounts = await _context.Accounts.ToListAsync();
+                foreach (var account in allAccounts)
+                {
+                    account.Balance = 0;
+                    account.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Save changes
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Successfully deleted {TransactionCount} transactions and reset all account balances", transactionCount);
+
+                return Ok(new { 
+                    message = $"Successfully deleted all {transactionCount} transactions and reset account balances to zero",
+                    deletedCount = transactionCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting all transactions");
+                return StatusCode(500, "An error occurred while deleting transactions");
+            }
+        }
     }
 }
