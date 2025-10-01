@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { transactionApi, categoryApi, accountApi, TransactionCreateDto, Category, TransactionType, Account } from '../services/api';
 
 interface TransactionFormProps {
@@ -22,12 +22,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    loadCategories();
-    loadAccounts();
-  }, [formData.type]);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await categoryApi.getAll(formData.type);
       setCategories(response.data);
@@ -38,9 +33,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
     } catch (err) {
       console.error('Failed to load categories:', err);
     }
-  };
+  }, [formData.type, formData.category]);
 
-  const loadAccounts = async () => {
+  const loadAccounts = useCallback(async () => {
     try {
       const response = await accountApi.getAll();
       setAccounts(response.data);
@@ -52,7 +47,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
     } catch (err) {
       console.error('Failed to load accounts:', err);
     }
-  };
+  }, [formData.accountId]);
+
+  useEffect(() => {
+    loadAccounts();
+    loadCategories();
+  }, [loadAccounts, loadCategories]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

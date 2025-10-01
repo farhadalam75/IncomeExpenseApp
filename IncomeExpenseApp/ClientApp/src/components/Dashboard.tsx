@@ -1,5 +1,5 @@
-import React, { useState, useEffect, memo } from 'react';
-import { transactionApi, accountApi, Transaction, Summary, TransactionType, Account } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { transactionApi, accountApi, Transaction, TransactionType, Account } from '../services/api';
 
 interface DashboardProps {
   onNavigate: (page: 'dashboard' | 'add-transaction' | 'transactions' | 'categories' | 'transfer') => void;
@@ -7,53 +7,58 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [summary, setSummary] = useState<any>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [recentTransfers, setRecentTransfers] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [cashAccount, setCashAccount] = useState<Account | null>(null);
   
   // Date filters
   const today = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [fromDate, toDate]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load summary, recent transactions, and accounts in parallel
-      const [summaryResponse, transactionsResponse, accountsResponse] = await Promise.all([
-        transactionApi.getSummary(fromDate, toDate),
-        transactionApi.getAll({ pageSize: 10, fromDate, toDate }),
-        accountApi.getAll()
-      ]);
-
+      // Load summary
+      const summaryResponse = await transactionApi.getSummary(fromDate, toDate);
       setSummary(summaryResponse.data);
+
+      // Load recent transactions (limit to 5)
+      const transactionsResponse = await transactionApi.getAll({
+        fromDate,
+        toDate,
+        page: 1,
+        pageSize: 5
+      });
       
-      // Separate transfers from regular transactions
+      // Separate regular transactions and transfers
       const allTransactions = transactionsResponse.data;
-      const regularTransactions = allTransactions.filter(t => t.category !== 'Transfer').slice(0, 5);
-      const transfers = allTransactions.filter(t => t.category === 'Transfer').slice(0, 5);
+      const regularTransactions = allTransactions.filter(t => t.category !== 'Transfer');
+      const transfers = allTransactions.filter(t => t.category === 'Transfer');
       
       setRecentTransactions(regularTransactions);
       setRecentTransfers(transfers);
+
+      // Load accounts
+      const accountsResponse = await accountApi.getAll();
       setAccounts(accountsResponse.data);
+
     } catch (err) {
+      console.error('Failed to load dashboard data:', err);
       setError('Failed to load dashboard data');
-      console.error('Dashboard error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [fromDate, toDate]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('en-BD', {

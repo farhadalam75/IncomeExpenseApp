@@ -31,21 +31,18 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
 
-  // Memoize expensive operations
+    // Memoize expensive operations
   const loadTransactionsCallback = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
       const params = {
+        ...appliedFilters,
+        type: appliedFilters.type ? parseInt(appliedFilters.type) as TransactionType : undefined,
         page: currentPage,
-        pageSize,
-        ...(appliedFilters.type && { type: parseInt(appliedFilters.type) as TransactionType }),
-        ...(appliedFilters.category && { category: appliedFilters.category }),
-        ...(appliedFilters.fromDate && { fromDate: appliedFilters.fromDate }),
-        ...(appliedFilters.toDate && { toDate: appliedFilters.toDate }),
+        pageSize: pageSize
       };
-
+      
       const response = await transactionApi.getAll(params);
       setTransactions(response.data);
     } catch (err) {
@@ -54,7 +51,7 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters, currentPage]);
+  }, [appliedFilters, currentPage, pageSize]);
 
   const loadCategoriesCallback = useCallback(async () => {
     try {

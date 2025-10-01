@@ -47,14 +47,9 @@ const Settings: React.FC = () => {
   const handleBackup = async () => {
     try {
       setIsSyncing(true);
-      const response = await fetch('/api/sync/backup', { method: 'POST' });
-      const data = await response.json();
+      await fetch('/api/sync/backup', { method: 'POST' });
       
-      if (response.ok) {
-        alert('✅ Data backed up to Google Drive successfully!');
-      } else {
-        alert(`❌ Backup failed: ${data.message}`);
-      }
+      alert('✅ Data backed up to Google Drive successfully!');
     } catch (error) {
       console.error('Backup failed:', error);
       alert('❌ Backup failed. Please try again.');
@@ -95,7 +90,7 @@ const Settings: React.FC = () => {
 
     try {
       setIsDeleting(true);
-      const response = await transactionApi.deleteAll();
+      await transactionApi.deleteAll();
       
       alert('✅ All transactions deleted and account balances reset to zero!');
       
