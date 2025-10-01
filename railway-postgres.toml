@@ -1,0 +1,11 @@
+# Railway.app Configuration with PostgreSQL
+# Rename this to railway.toml to use PostgreSQL instead of SQLite
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "dotnet IncomeExpenseApp.dll"
+
+# Environment variables for PostgreSQL
+# Railway will automatically provide DATABASE_URL for PostgreSQL

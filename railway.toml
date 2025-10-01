@@ -6,3 +6,7 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "dotnet IncomeExpenseApp.dll"
+
+# Volume for persistent SQLite database
+[[deploy.volumes]]
+mountPath = "/data"

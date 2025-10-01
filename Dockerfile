@@ -19,8 +19,8 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-# Create directory for SQLite database
-RUN mkdir -p /app/data
+# Create directory for SQLite database - Use Railway volume mount
+RUN mkdir -p /data
 
 # Set environment variables for Railway
 ENV ASPNETCORE_ENVIRONMENT=Production

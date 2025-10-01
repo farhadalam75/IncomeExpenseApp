@@ -10,16 +10,13 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Add Google Drive Sync Service
-builder.Services.AddScoped<IncomeExpenseApp.Services.IGoogleDriveSyncService, IncomeExpenseApp.Services.GoogleDriveSyncService>();
-
 // Add SPA services
 builder.Services.AddSpaStaticFiles(configuration =>
 {
     configuration.RootPath = "ClientApp/build";
 });
 
-// Add Entity Framework with SQLite or InMemory for testing
+// Add Entity Framework with multiple database support
 if (builder.Environment.EnvironmentName == "Testing")
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
@@ -31,25 +28,32 @@ else
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
-        // Railway-friendly database configuration
         var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
         
-        if (string.IsNullOrEmpty(connectionString))
+        if (!string.IsNullOrEmpty(connectionString))
         {
-            // Check if we're in Railway environment
-            var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
-            if (isRailway)
+            // PostgreSQL connection (Railway provides this)
+            if (connectionString.StartsWith("postgres://"))
             {
-                // Use Railway's persistent volume mount
-                connectionString = "Data Source=/data/incomeexpense.db";
+                // Convert Railway's postgres:// URL to standard format
+                connectionString = connectionString.Replace("postgres://", "postgresql://");
+                options.UseNpgsql(connectionString);
             }
             else
             {
-                connectionString = "Data Source=incomeexpense.db";
+                // SQLite connection
+                options.UseSqlite(connectionString);
             }
         }
-        
-        options.UseSqlite(connectionString);
+        else
+        {
+            // Local development - use SQLite with persistent volume path
+            var isRailway = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT"));
+            connectionString = isRailway 
+                ? "Data Source=/data/incomeexpense.db" 
+                : "Data Source=incomeexpense.db";
+            options.UseSqlite(connectionString);
+        }
     });
 }
 
@@ -92,11 +96,29 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Ensure database is created
+// Ensure database is created and migrated
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
+    try
+    {
+        // Use migrations for PostgreSQL, EnsureCreated for SQLite
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+        if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("postgres"))
+        {
+            context.Database.Migrate(); // Use migrations for PostgreSQL
+        }
+        else
+        {
+            context.Database.EnsureCreated(); // Use EnsureCreated for SQLite
+        }
+    }
+    catch (Exception ex)
+    {
+        // Log the error but don't fail startup
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Failed to initialize database");
+    }
 }
 
 app.UseHttpsRedirection();
