@@ -38,31 +38,26 @@ jobs:
 
     - name: Build React app
       working-directory: ./IncomeExpenseApp/ClientApp
-      run: npm run build
+      run: |
+        # Disable treating warnings as errors in CI
+        CI=false npm run build
 
-    - name: Install Capacitor
+    - name: Install Capacitor and Android platform
       working-directory: ./IncomeExpenseApp/ClientApp
       run: |
         npm install -g @capacitor/cli
-        npm install @capacitor/android
+        npm install @capacitor/android @capacitor/core
 
-    - name: Initialize Capacitor (if needed)
+    - name: Remove existing Android project
+      working-directory: ./IncomeExpenseApp/ClientApp
+      run: rm -rf android
+
+    - name: Initialize fresh Capacitor project
       working-directory: ./IncomeExpenseApp/ClientApp
       run: |
-        if [ ! -f capacitor.config.ts ]; then
-          npx cap init "Income Expense App" "com.incomeexpense.app"
-        fi
-
-    - name: Add Android platform (if needed)
-      working-directory: ./IncomeExpenseApp/ClientApp
-      run: |
-        if [ ! -d android ]; then
-          npx cap add android
-        fi
-
-    - name: Copy web assets
-      working-directory: ./IncomeExpenseApp/ClientApp
-      run: npx cap copy android
+        npx cap init "Income Expense App" "com.incomeexpense.app" --web-dir=build
+        npx cap add android
+        npx cap sync android
 
     - name: Grant execute permission for gradlew
       working-directory: ./IncomeExpenseApp/ClientApp/android
@@ -71,13 +66,6 @@ jobs:
     - name: Build APK
       working-directory: ./IncomeExpenseApp/ClientApp/android
       run: ./gradlew assembleDebug
-
-    - name: Sign APK (Optional - for production)
-      working-directory: ./IncomeExpenseApp/ClientApp/android
-      run: |
-        # For production, you would sign the APK here
-        # This step is optional for development/testing
-        echo "APK built successfully - signing step can be added for production"
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4

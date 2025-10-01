@@ -60,6 +60,11 @@ node_modules/
 dist/
 wwwroot/
 
+# Capacitor
+IncomeExpenseApp/ClientApp/android/
+IncomeExpenseApp/ClientApp/ios/
+IncomeExpenseApp/ClientApp/.capacitor/
+
 # Secrets
 secrets.json
 .env
