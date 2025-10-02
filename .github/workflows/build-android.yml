@@ -2,10 +2,10 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, working-app ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, working-app ]
   workflow_dispatch: # Allows manual trigger
 
 jobs:
@@ -40,51 +40,70 @@ jobs:
       working-directory: ./IncomeExpenseApp/ClientApp
       run: npm run build
 
-    - name: Install Capacitor
+    - name: Verify Capacitor config
       working-directory: ./IncomeExpenseApp/ClientApp
       run: |
-        npm install -g @capacitor/cli
-        npm install @capacitor/android
-
-    - name: Initialize Capacitor (if needed)
-      working-directory: ./IncomeExpenseApp/ClientApp
-      run: |
-        if [ ! -f capacitor.config.ts ]; then
-          npx cap init "Income Expense App" "com.incomeexpense.app"
+        echo "Checking Capacitor configuration..."
+        if [ -f capacitor.config.ts ]; then
+          cat capacitor.config.ts
+        else
+          echo "⚠️ capacitor.config.ts not found!"
+          exit 1
         fi
 
-    - name: Add Android platform (if needed)
+    - name: Sync Capacitor
       working-directory: ./IncomeExpenseApp/ClientApp
       run: |
-        if [ ! -d android ]; then
-          npx cap add android
-        fi
-
-    - name: Copy web assets
-      working-directory: ./IncomeExpenseApp/ClientApp
-      run: npx cap copy android
+        echo "Syncing Capacitor assets..."
+        npx cap sync android
 
     - name: Grant execute permission for gradlew
       working-directory: ./IncomeExpenseApp/ClientApp/android
       run: chmod +x gradlew
 
-    - name: Build APK
+    - name: Build Debug APK
       working-directory: ./IncomeExpenseApp/ClientApp/android
-      run: ./gradlew assembleDebug
+      run: ./gradlew assembleDebug --stacktrace
 
-    - name: Sign APK (Optional - for production)
+    - name: Build Release APK (unsigned)
+      working-directory: ./IncomeExpenseApp/ClientApp/android
+      run: ./gradlew assembleRelease --stacktrace
+      continue-on-error: true
+
+    - name: List build outputs
       working-directory: ./IncomeExpenseApp/ClientApp/android
       run: |
-        # For production, you would sign the APK here
-        # This step is optional for development/testing
-        echo "APK built successfully - signing step can be added for production"
+        echo "Build outputs:"
+        find app/build/outputs/apk -name "*.apk" -type f
 
-    - name: Upload APK artifact
+    - name: Get APK info
+      working-directory: ./IncomeExpenseApp/ClientApp/android
+      run: |
+        APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+        if [ -f "$APK_PATH" ]; then
+          echo "✅ APK built successfully!"
+          echo "📍 Location: $APK_PATH"
+          echo "📏 Size: $(du -h "$APK_PATH" | cut -f1)"
+          ls -lh "$APK_PATH"
+        else
+          echo "❌ APK not found at $APK_PATH"
+          exit 1
+        fi
+
+    - name: Upload Debug APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: income-expense-app-debug
+        name: income-expense-app-debug-${{ github.sha }}
         path: ./IncomeExpenseApp/ClientApp/android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
+
+    - name: Upload Release APK artifact (if exists)
+      uses: actions/upload-artifact@v4
+      if: hashFiles('./IncomeExpenseApp/ClientApp/android/app/build/outputs/apk/release/*.apk') != ''
+      with:
+        name: income-expense-app-release-${{ github.sha }}
+        path: ./IncomeExpenseApp/ClientApp/android/app/build/outputs/apk/release/*.apk
+        retention-days: 90
 
     - name: Create Release (on tag push)
       if: startsWith(github.ref, 'refs/tags/')
@@ -93,27 +112,49 @@ jobs:
         files: |
           ./IncomeExpenseApp/ClientApp/android/app/build/outputs/apk/debug/app-debug.apk
         name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
         body: |
-          ## 📱 Income Expense App - Android Release
+          ## 📱 Income Expense App - Android Release ${{ github.ref_name }}
           
           ### 🚀 Features:
-          - Income & Expense tracking
-          - Multiple account support
-          - Transfer between accounts
-          - Google Drive sync for data backup
-          - Offline support
-          - Mobile-optimized UI
+          - ✅ Income & Expense tracking with categories
+          - ✅ Multiple account support (Cash, Bank, Credit Card, etc.)
+          - ✅ Transfer money between accounts
+          - ✅ Beautiful glassmorphism UI design
+          - ✅ Dark/Light mode support
+          - ✅ Offline-first with local SQLite database
+          - ✅ Transaction history and filtering
+          - ✅ Account balance management
+          - ✅ Mobile-optimized responsive design
           
-          ### 📥 Installation:
-          1. Download the APK file below
-          2. Enable "Install from Unknown Sources" in Android settings
-          3. Install the APK
-          4. Open the app and enjoy!
+          ### 📥 Installation Instructions:
+          1. **Download** the APK file below (`app-debug.apk`)
+          2. **Enable Unknown Sources**: 
+             - Go to Settings → Security → Unknown Sources
+             - Or Settings → Apps → Special Access → Install Unknown Apps
+          3. **Install** the APK file
+          4. **Open** the app and start tracking your finances!
           
-          ### 🔄 Data Sync:
-          - Go to Settings → Google Drive Sync
-          - Connect your Google account
-          - Backup/restore your data across devices
+          ### � Usage:
+          - **Add Account**: Create accounts for Cash, Bank, Credit Cards, etc.
+          - **Add Transaction**: Record income or expenses with categories
+          - **Transfer**: Move money between accounts
+          - **View Summary**: See your total income, expenses, and balance
+          
+          ### 🔧 Technical Details:
+          - **Platform**: Android (API 22+)
+          - **Size**: ~5-10 MB
+          - **Framework**: React + Capacitor
+          - **Database**: SQLite (local)
+          
+          ### 📝 Notes:
+          - This is a debug build for testing purposes
+          - All data is stored locally on your device
+          - No internet connection required
+          
+          ---
+          Built with ❤️ using GitHub Actions
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -122,9 +163,43 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          const apkPath = './IncomeExpenseApp/ClientApp/android/app/build/outputs/apk/debug/app-debug.apk';
+          let apkSize = 'N/A';
+          
+          try {
+            const stats = fs.statSync(apkPath);
+            apkSize = (stats.size / 1024 / 1024).toFixed(2) + ' MB';
+          } catch (e) {
+            console.log('Could not get APK size');
+          }
+          
+          const body = `## 📱 Android APK Build Complete! ✅
+          
+          Your Android APK has been built successfully!
+          
+          **📦 Build Information:**
+          - **Size**: ${apkSize}
+          - **Build Type**: Debug
+          - **Commit**: ${context.sha.substring(0, 7)}
+          
+          **📥 Download:**
+          You can download the APK from the [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+          
+          **🔧 Testing:**
+          1. Download the APK artifact
+          2. Transfer to your Android device
+          3. Enable "Install from Unknown Sources"
+          4. Install and test!
+          
+          ---
+          *Built with GitHub Actions* 🚀`;
+          
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: '📱 Android APK has been built successfully! You can download it from the [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).'
-          })
+            body: body
+          });

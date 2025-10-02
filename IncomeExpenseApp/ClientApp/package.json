@@ -4,6 +4,8 @@
   "private": true,
   "dependencies": {
     "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
@@ -25,7 +27,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "android:sync": "cap sync android",
+    "android:build": "cd android && ./gradlew assembleDebug",
+    "android:build-release": "cd android && ./gradlew assembleRelease",
+    "android:open": "cap open android"
   },
   "eslintConfig": {
     "extends": [
