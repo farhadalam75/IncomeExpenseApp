@@ -50,8 +50,9 @@ jobs:
     - name: Install Capacitor and Android platform
       working-directory: ./IncomeExpenseApp/ClientApp
       run: |
-        npm install -g @capacitor/cli
-        npm install @capacitor/android @capacitor/core
+        rm -f package-lock.json
+        npm install -g @capacitor/cli@6.1.2
+        npm install @capacitor/android@6.1.2 @capacitor/core@6.1.2
 
     - name: Remove existing Android project
       working-directory: ./IncomeExpenseApp/ClientApp
