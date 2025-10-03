@@ -95,7 +95,7 @@ const Settings: React.FC = () => {
 
     try {
       setIsDeleting(true);
-      const response = await transactionApi.deleteAll();
+      await transactionApi.deleteAll();
       
       alert('✅ All transactions deleted and account balances reset to zero!');
       

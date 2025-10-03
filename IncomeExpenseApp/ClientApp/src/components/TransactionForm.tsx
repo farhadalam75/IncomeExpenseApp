@@ -22,11 +22,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    loadCategories();
-    loadAccounts();
-  }, [formData.type]);
-
   const loadCategories = async () => {
     try {
       const response = await categoryApi.getAll(formData.type);
@@ -53,6 +48,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onBack }) 
       console.error('Failed to load accounts:', err);
     }
   };
+
+  useEffect(() => {
+    loadCategories();
+    loadAccounts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.type]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

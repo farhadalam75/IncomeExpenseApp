@@ -54,7 +54,7 @@ const TransactionList: React.FC<TransactionListProps> = memo(({ onNavigate, onBa
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters, currentPage]);
+  }, [appliedFilters, currentPage, pageSize]);
 
   const loadCategoriesCallback = useCallback(async () => {
     try {
